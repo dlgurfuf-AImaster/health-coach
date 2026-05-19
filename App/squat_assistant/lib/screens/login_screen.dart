@@ -1,0 +1,126 @@
+import 'package:flutter/material.dart';
+import 'main_holder.dart';
+import 'signup_screen.dart';
+import '/services/api_service.dart';
+
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({super.key});
+
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    // 메모리 누수 방지를 위한 컨트롤러 해제
+    _usernameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  // 비동기 처리를 위해 async를 붙여줍니다.
+  void _handleLogin() async {
+    if (_usernameController.text.isEmpty || _passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("아이디와 비밀번호를 입력해주세요.")));
+      return;
+    }
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text("로그인 중...")));
+
+    // ApiService를 통해 Spring Boot 서버로 로그인 검증 요청!
+    bool isSuccess = await ApiService().loginUser(
+      _usernameController.text,
+      _passwordController.text,
+    );
+
+    if (isSuccess) {
+      // 로그인 성공 시 메인 화면으로 이동하며 로그인 화면은 스택에서 제거
+      Navigator.pushReplacement(
+        context,
+
+        MaterialPageRoute(builder: (context) => const MainHolder()),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("로그인 실패: 아이디 또는 비밀번호를 확인하세요.")),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              "HEALTH COACH",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: Colors.blue,
+              ),
+            ),
+            const SizedBox(height: 40),
+
+            //아이디 입력 창
+            TextField(
+              controller: _usernameController,
+              decoration: const InputDecoration(
+                labelText: '아이디',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.person),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            //비밀번호 입력 창
+            TextField(
+              controller: _passwordController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: '비밀번호',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.lock),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            //로그인 버튼
+            ElevatedButton(
+              onPressed: _handleLogin,
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text("로그인", style: TextStyle(fontSize: 18)),
+            ),
+
+            TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SignupScreen()),
+                );
+              },
+              child: const Text("아직 계정이 없으신가요? 회원가입"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
