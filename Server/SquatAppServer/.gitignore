@@ -31,3 +31,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# 데이터베이스 비밀번호가 들어있는 설정 파일은 깃 백업에서 제외한다!
+/src/main/resources/application.properties
