@@ -10,7 +10,7 @@ class ApiService {
   // ⚠️ 중요: 에뮬레이터에서 로컬 컴퓨터(Spring Boot)에 접속할 때의 IP 주소입니다.
   // 안드로이드 에뮬레이터는 10.0.2.2가 내 컴퓨터(localhost)를 뜻합니다.
   // 실제 스마트폰으로 테스트할 때는 컴퓨터의 실제 IP 주소(예: 192.168.0.X)로 바꿔야 합니다.
-  final String _baseUrl = "http://10.0.2.2:9000/api"; // 8080 -> 9000으로 변경!
+  final String _baseUrl = "http://192.168.219.184:9000/api"; // 8080 -> 9000으로 변경!
 
   ApiService._internal() {
     // 디오 설정 (타임아웃 등)

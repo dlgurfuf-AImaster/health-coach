@@ -1,116 +1,74 @@
-enum SquatState {
-  stand,       // 0: 서 있는 상태
-  goingDown,   // 1: 내려가는 중
-  bottom,      // 2: 최저점 구간 진입 및 판정
-  goingUp      // 3: 다시 일어서는 중
-}
-
 class SquatAnalyzer {
-  SquatState squatState = SquatState.stand;
+  // 현재 유저의 운동 상태를 정의
+  String _currentState = "STAND";
 
-  double maxThighAngle = 0.0;
-  double captureWaistAngle = 0.0;
-  DateTime? bottomEnterTime;
+  int _successCount = 0;
+  int get successCount => _successCount;
 
-  // DB로 보낼 최종 통계 변수
-  int totalCount = 0;
-  int successCount = 0;
-  int badWaistAngleCount = 0;
-  int shallowSquatCount = 0;
+  // 💡 노이즈 방어벽 (데드존 임계값)
+  // 가만히 있어도 15도까지 흔들리므로, 최소 25도는 넘게 내려가야 "앉기 시작했다"라고 인정합니다.
+  final double _startSquatThreshold = 25.0;
 
-  // 판정 기준 상수
-  static const double SQUAT_DEPTH_LIMIT = 70.0;
-  static const double STAND_UP_LIMIT = 20.0;
-  static const double WAIST_WARNING_LIMIT = 45.0;
-  static const double COLLAPSE_LIMIT = 120.0;
+  // 💡 스쿼트 인정 기준 각도
+  // 허벅지가 최소 65도 이상은 내려가야 "제대로 앉았다"라고 인정합니다.
+  final double _fullSquatThreshold = 65.0;
 
-  // 핵심 판정 메서드
-  String analyze(double wAngle, double tAngle) {
-    // 주저앉음 필터
-    if (tAngle > COLLAPSE_LIMIT) {
-      reset();
-      return "🚨 경고: 주저앉음 감지! 다시 서서 시작하세요.";
-    }
-
-    // 시간 초과 필터 (5초 시간 초과시)
-    if (squatState == SquatState.bottom && bottomEnterTime != null) {
-      if (DateTime
-          .now()
-          .difference(bottomEnterTime!)
-          .inSeconds > 5) {
-        reset();
-        return "🚨 경고: 최저점 시간 초과! 실패 처리됩니다.";
-      }
-    }
-
-    // 상태 머신
-    switch (squatState) {
-      case SquatState.stand:
-        if (tAngle > 25.0) {
-          squatState = SquatState.goingDown;
-          maxThighAngle = tAngle;
-          captureWaistAngle = wAngle;
-          return "내려가는 중...";
-        }
-        break;
-
-      case SquatState.goingDown:
-        if (tAngle > maxThighAngle) {
-          maxThighAngle = tAngle;
-          captureWaistAngle = wAngle; // 최저점 허리 각도 캡쳐
-        }
-
-        // 목표 깊이 도달 시
-        if (tAngle >= SQUAT_DEPTH_LIMIT) {
-          squatState = SquatState.bottom;
-          bottomEnterTime = DateTime.now();
-          return _evaluatePosture(); // 즉시 1차 자세 변경
-        }
-        break;
-
-      case SquatState.bottom:
-        // 사용자가 다시 일어서기 시작하여 각도 감소 시
-        if (tAngle < 60.0) squatState = SquatState.goingUp;
-        break;
-
-      case SquatState.goingUp:
-        // 원점으로 안전하게 복귀했을 때 1회 최종 인정
-        if (tAngle <= STAND_UP_LIMIT) {
-          _completeRepetition();
-          String finalMsg = "성공! 총 ${totalCount}회 중 ${successCount}회 성공";
-          reset();
-          return finalMsg;
-        }
-        break;
-    }
-    return ""; // 상태 변화가 없을 때는 빈 문자열 반환
-  }
-
-  // 자세 판정 내부 로직
-  String _evaluatePosture() {
-    if (captureWaistAngle > WAIST_WARNING_LIMIT && maxThighAngle < 80.0) {
-      return "⚠️ 불량: 허리가 너무 숙여졌습니다! 상체를 세우세요.";
-    } else if (maxThighAngle < 75.0) {
-      return "⚠️ 불량: 깊이가 너무 얕습니다! 더 앉으세요.";
-    } else {
-      return "✅ 정자세! 그대로 올라오세요.";
-    }
-  }
-
-  // 카운트 및 경향성 통계 누적
-  void _completeRepetition() {
-    totalCount++;
-    String pattern = _evaluatePosture();
-    if (pattern.contains("정자세")) successCount++;
-    if (pattern.contains("허리")) badWaistAngleCount++;
-    if (pattern.contains("얕습니다")) shallowSquatCount++;
-  }
-  
-  // 다음 횟수 또는 에러 시 리셋
+  /// 상태 및 카운트 초기화 (영점 잡을 때 호출)
   void reset() {
-    squatState = SquatState.stand;
-    maxThighAngle = 0.0;
-    captureWaistAngle = 0.0;
-    bottomEnterTime = null;
+    _currentState = "STAND";
+    _successCount = 0;
+  }
+
+  /// 🎯 [핵심] 오직 '정확한 스쿼트 1개 성공'에만 집중하는 필터링 로직
+  String analyze(double waistAngle, double thighAngle) {
+    // 1. 센서 노이즈로 인해 각도가 마이너스로 튀거나 역전되는 현상 방지
+    double cleanThigh = thighAngle.clamp(0.0, 180.0);
+    double cleanWaist = waistAngle.clamp(0.0, 180.0);
+
+    String message = "";
+
+    switch (_currentState) {
+      case "STAND":
+      // 서 있는 상태에서 허벅지가 노이즈(15도)를 뚫고 확실하게 내려가기 시작하면
+        if (cleanThigh > _startSquatThreshold) {
+          _currentState = "GOING_DOWN";
+          message = "내려가는 중... 더 깊게 앉으세요!";
+        } else {
+          message = "바르게 서서 스쿼트를 시작하세요.";
+        }
+        break;
+
+      case "GOING_DOWN":
+      // 확실하게 목표 깊이(65도 이상)까지 도달했는지 체크
+        if (cleanThigh >= _fullSquatThreshold) {
+          _currentState = " FULL_SQUAT";
+          message = "좋습니다! 그대로 천천히 일어나세요.";
+        }
+        // 만약 깊이 못 앉고 어중간하게 다시 인어서 서 버리면 노이즈나 무효 처리
+        else if (cleanThigh < _startSquatThreshold) {
+          _currentState = "STAND";
+          message = "조금 더 깊게 앉아야 합니다. 다시 시도하세요.";
+        }
+        break;
+
+      case "FULL_SQUAT":
+      // 완전히 앉은 상태에서 유저가 몸을 일으켜 다시 서 있는 기준(25도 이하)으로 복귀하면
+        if (cleanThigh <= _startSquatThreshold) {
+          // ⚠️ 여기서 허리가 너무 앞으로 꼬꾸라졌는지 최후의 커트라인만 하나 둡니다.
+          // 허벅지는 일어났는데 허리가 45도 이상 숙여져 있다면 이건 스쿼트가 아니라 굿모닝 엑서사이즈가 됩니다.
+          if (cleanWaist > 40.0) {
+            message = "일어날 때 허리가 너무 숙여졌습니다! 카운트 제외.";
+            _currentState = "STAND"; // 카운트는 안 올리고 상태만 리셋
+          } else {
+            // 🎉 완벽한 스쿼트 1개 성공!
+            _successCount++;
+            message = "✨ 스쿼트 ${_successCount}회 성공! 아주 좋습니다.";
+            _currentState = "STAND"; // 다음 스쿼트를 위해 상태 리셋
+          }
+        }
+        break;
+    }
+
+    return message;
   }
 }

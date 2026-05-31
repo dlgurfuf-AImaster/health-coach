@@ -3,6 +3,7 @@ import 'dart:math';
 import 'dart:async';
 import '../models/squat_model.dart';
 import 'package:squat_assistant/services/squat_analyzer.dart';
+import 'package:squat_assistant/services/MyBluetoothService.dart';
 
 class SquatProvider with ChangeNotifier {
   SquatData _data = SquatData(waistAngle: 0.0, thighAngle: 0.0);
@@ -10,6 +11,8 @@ class SquatProvider with ChangeNotifier {
   SquatData get data => _data;
 
   final SquatAnalyzer _analyzer = SquatAnalyzer();
+
+  final MyBluetoothService _bluetoothService = MyBluetoothService();
 
   List<double>? _baseWaistVec;
   List<double>? _baseThighVec;
@@ -21,6 +24,23 @@ class SquatProvider with ChangeNotifier {
     _analyzer.reset(); // 영점 잡을 때, 기준 상태도 stand로 초기화
 
     _updateState(status: "영점 조절 완료! 시작하세요.");
+  }
+
+  /// 아두이노 블루투스 데이터를 켜고 운동을 시작하는 메서드
+  void startBluetoothWorkout() async {
+    _updateState(status: "아두이노 연결 시도 중...");
+
+    // 아두이노를 찾아 연결 시도
+    await _bluetoothService.connectToArduino("BT05", (waistVec, thighVec) {
+
+      //영점 잡기 버튼을 누르는 순간에 영점이 저장
+      if (_baseWaistVec == null || _baseThighVec == null) {
+        calibrate(waistVec, thighVec);
+      }
+
+      // 이후 실시간 데이터가 전송
+      updateRawData(waistVec, thighVec);
+    });
   }
 
   /// 블루투스로부터 오는 데이터 수신처

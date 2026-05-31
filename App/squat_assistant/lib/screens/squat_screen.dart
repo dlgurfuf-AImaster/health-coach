@@ -49,34 +49,75 @@ class SquatScreen extends StatelessWidget {
                     color: Colors.blueAccent,
                   ),
                 ),
-                const Text("SQUATS", style: TextStyle(fontSize: 20, letterSpacing: 2)),
+                const Text(
+                  "SQUATS",
+                  style: TextStyle(fontSize: 20, letterSpacing: 2),
+                ),
 
                 const SizedBox(height: 50),
 
                 // 4. 컨트롤 버튼들
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Row(
+                  child: Column(
                     children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () => provider.startMocking(),
-                          icon: const Icon(Icons.play_arrow),
-                          label: const Text("가상 테스트"),
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.grey[200], foregroundColor: Colors.black),
-                        ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                provider.startBluetoothWorkout();
+                              },
+                              icon: const Icon(Icons.bluetooth_connected),
+                              label: const Text("아두이노 연결"),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blueAccent,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            // 실제 연결 시 아두이노에서 온 첫 데이터를 넣어야 함
-                            provider.calibrate([0, 0, 9.8], [0, 0, 9.8]);
-                          },
-                          icon: const Icon(Icons.refresh),
-                          label: const Text("영점 조절"),
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent, foregroundColor: Colors.white),
-                        ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () => provider.startMocking(),
+                              icon: const Icon(Icons.play_arrow),
+                              label: const Text("가상 테스트"),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.grey[200],
+                                foregroundColor: Colors.black,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+
+                          // 수동 영점 초기화 버튼
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                // 영점 잡기 수동 초기화 실시
+                                provider.startBluetoothWorkout();
+                              },
+                              icon: const Icon(Icons.refresh),
+                              label: const Text("다시 연결"),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.orangeAccent,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
