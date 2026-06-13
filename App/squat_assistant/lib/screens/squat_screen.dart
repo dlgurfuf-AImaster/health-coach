@@ -17,17 +17,19 @@ class SquatScreen extends StatelessWidget {
         builder: (context, provider, child) {
           // 최신 데이터 객체(Snapshot) 가져오기
           final squat = provider.data;
+          // 🔥 분석기 내부의 실시간 불량 카운트를 가져오기 위해 연결
+          final analyzer = provider.analyzer;
 
           return SingleChildScrollView(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const SizedBox(height: 30),
+                const SizedBox(height: 20),
 
-                // 1. 상태 메시지 카드
+                // 1. 상태 메시지 카드 (경고 및 성공 메시지 출력)
                 _buildStatusCard(squat.status),
 
-                const SizedBox(height: 40),
+                const SizedBox(height: 30),
 
                 // 2. 실시간 각도 표시 (커스텀 게이지 스타일)
                 Row(
@@ -38,23 +40,68 @@ class SquatScreen extends StatelessWidget {
                   ],
                 ),
 
-                const SizedBox(height: 50),
+                const SizedBox(height: 40),
 
-                // 3. 카운트 표시
+                // 3. 메인 성공 카운트 표시
                 Text(
                   "${squat.count}",
                   style: const TextStyle(
-                    fontSize: 100,
+                    fontSize: 90,
                     fontWeight: FontWeight.bold,
                     color: Colors.blueAccent,
                   ),
                 ),
                 const Text(
                   "SQUATS",
-                  style: TextStyle(fontSize: 20, letterSpacing: 2),
+                  style: TextStyle(
+                    fontSize: 18,
+                    letterSpacing: 2,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
 
-                const SizedBox(height: 50),
+                const SizedBox(height: 30),
+
+                // 🛑 🔥 [신설] 3대 불량 자세 실시간 스코어보드
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "⚠️ 실시간 자세 피드백 통계",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _buildErrorCard(
+                            "허리 과숙임",
+                            analyzer.waistErrorCount,
+                            Colors.orange,
+                          ),
+                          _buildErrorCard(
+                            "얕은 깊이",
+                            analyzer.depthErrorCount,
+                            Colors.red,
+                          ),
+                          _buildErrorCard(
+                            "상체 선행",
+                            analyzer.goodMorningCount,
+                            Colors.purple,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 40),
 
                 // 4. 컨트롤 버튼들
                 Padding(
@@ -74,14 +121,17 @@ class SquatScreen extends StatelessWidget {
                                 backgroundColor: Colors.blueAccent,
                                 foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(
-                                  vertical: 12,
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
                               ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
                       Row(
                         children: [
                           Expanded(
@@ -93,27 +143,39 @@ class SquatScreen extends StatelessWidget {
                                 backgroundColor: Colors.grey[200],
                                 foregroundColor: Colors.black,
                                 padding: const EdgeInsets.symmetric(
-                                  vertical: 12,
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
                                 ),
                               ),
                             ),
                           ),
-                          const SizedBox(width: 10),
+                          const SizedBox(width: 12),
 
-                          // 수동 영점 초기화 버튼
+                          // ⚙️ [수정] 수동 영점 조절 및 카운트 리셋 버튼
                           Expanded(
                             child: ElevatedButton.icon(
                               onPressed: () {
-                                // 영점 잡기 수동 초기화 실시
-                                provider.startBluetoothWorkout();
+                                // 분석기 카운터를 싹 초기화하고 새로 시작하는 리셋 기능
+                                provider.reset();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("모든 운동 통계가 초기화되었습니다."),
+                                  ),
+                                );
                               },
                               icon: const Icon(Icons.refresh),
-                              label: const Text("다시 연결"),
+                              label: const Text("통계 초기화"),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.orangeAccent,
+                                backgroundColor: Colors.redAccent,
                                 foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(
-                                  vertical: 12),
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
                               ),
                             ),
                           ),
@@ -122,7 +184,7 @@ class SquatScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 30),
               ],
             ),
           );
@@ -131,23 +193,26 @@ class SquatScreen extends StatelessWidget {
     );
   }
 
-  // 상태 메시지 빌더
+  // 상태 메시지 빌더 (❌ 아이콘이나 경고 문구 감지)
   Widget _buildStatusCard(String status) {
-    bool isWarning = status.contains("경고");
+    bool isWarning = status.contains("❌") || status.contains("경고");
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 20),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: isWarning ? Colors.red[50] : Colors.blue[50],
         borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: isWarning ? Colors.red : Colors.blueAccent),
+        border: Border.all(
+          color: isWarning ? Colors.red : Colors.blueAccent,
+          width: 2,
+        ),
       ),
       child: Center(
         child: Text(
           status,
           textAlign: TextAlign.center,
           style: TextStyle(
-            fontSize: 20,
+            fontSize: 18,
             fontWeight: FontWeight.bold,
             color: isWarning ? Colors.red : Colors.blueAccent,
           ),
@@ -160,28 +225,71 @@ class SquatScreen extends StatelessWidget {
   Widget _buildAngleGauge(String label, double value, Color color) {
     return Column(
       children: [
-        Text(label, style: const TextStyle(fontSize: 16, color: Colors.grey)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 16,
+            color: Colors.grey,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         const SizedBox(height: 10),
         Stack(
           alignment: Alignment.center,
           children: [
             SizedBox(
-              width: 80,
-              height: 80,
+              width: 90,
+              height: 90,
               child: CircularProgressIndicator(
-                value: (value % 180) / 180, // 180도 기준 비율
-                strokeWidth: 8,
+                value: (value % 180) / 180,
+                strokeWidth: 10,
                 backgroundColor: Colors.grey[200],
                 valueColor: AlwaysStoppedAnimation<Color>(color),
               ),
             ),
             Text(
               "${value.toInt()}°",
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
           ],
         ),
       ],
+    );
+  }
+
+  // 🧱 🔥 [신설] 불량 카운트를 이쁘게 시각화해줄 카드 위젯 빌더
+  Widget _buildErrorCard(String title, int count, Color color) {
+    return Expanded(
+      child: Card(
+        margin: const EdgeInsets.symmetric(horizontal: 4),
+        elevation: 3,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 8.0),
+          child: Column(
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                "$count회",
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'main_holder.dart';
 import 'signup_screen.dart';
 import '/services/api_service.dart';
+import 'squat_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -117,6 +118,30 @@ class _LoginScreenState extends State<LoginScreen> {
                 );
               },
               child: const Text("아직 계정이 없으신가요? 회원가입"),
+            ),
+
+            const SizedBox(height: 15),
+
+            ElevatedButton.icon(
+              onPressed: () {
+                // ⭕ 서버 없이 바로 스쿼트 화면(혹은 MainHolder)으로 진입
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const SquatScreen(),
+                  ), // 혹은 const MainHolder()
+                );
+              },
+              icon: const Icon(Icons.developer_mode, color: Colors.orange),
+              label: const Text("서버 없이 테스트 모드 진입"),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.grey[800],
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 50),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
             ),
           ],
         ),

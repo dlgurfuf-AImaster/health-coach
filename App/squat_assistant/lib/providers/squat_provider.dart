@@ -12,10 +12,30 @@ class SquatProvider with ChangeNotifier {
 
   final SquatAnalyzer _analyzer = SquatAnalyzer();
 
+  SquatAnalyzer get analyzer => _analyzer;
+
   final MyBluetoothService _bluetoothService = MyBluetoothService();
 
   List<double>? _baseWaistVec;
   List<double>? _baseThighVec;
+
+  /// 🔄 운동 통계 및 영점 데이터 전체 초기화
+  void reset() {
+    // 1. 분석기(Analyzer) 내부의 카운트와 상태를 STAND로 초기화
+    _analyzer.reset();
+
+    // 2. 영점 기준 벡터를 null로 만들어 다음 연결 시 새로 잡도록 설정
+    _baseWaistVec = null;
+    _baseThighVec = null;
+
+    // 3. UI에 표시되던 각도, 카운트, 상태 메시지를 태초의 상태로 초기화
+    _updateState(
+      waist: 0.0,
+      thigh: 0.0,
+      count: 0,
+      status: "바르게 서서 스쿼트를 시작하세요.",
+    );
+  }
 
   /// 영점 조절
   void calibrate(List<double> wVec, List<double> tVec) {
@@ -32,7 +52,6 @@ class SquatProvider with ChangeNotifier {
 
     // 아두이노를 찾아 연결 시도
     await _bluetoothService.connectToArduino("BT05", (waistVec, thighVec) {
-
       //영점 잡기 버튼을 누르는 순간에 영점이 저장
       if (_baseWaistVec == null || _baseThighVec == null) {
         calibrate(waistVec, thighVec);
